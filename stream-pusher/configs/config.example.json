@@ -1,0 +1,27 @@
+{
+  "stream": {
+    "input_url": "http://192.168.201.124/webcam/?action=stream",
+    "output_url": "rtmp://192.168.200.68:1935/livehime"
+  },
+  "video": {
+    "resolution": "640x480",
+    "framerate": 25,
+    "bitrate": "1000k",
+    "codec": "libx264",
+    "preset": "veryfast"
+  },
+  "audio": {
+    "codec": "aac",
+    "bitrate": "160k",
+    "sample_rate": 48000,
+    "channels": 2
+  },
+  "retry": {
+    "max_retries": 5,
+    "retry_delay": "5s"
+  },
+  "logging": {
+    "level": "info",
+    "file": "stream-pusher.log"
+  }
+}
