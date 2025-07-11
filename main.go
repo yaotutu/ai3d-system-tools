@@ -103,6 +103,47 @@ func (sp *StreamPusher) CheckRTMPOutput() error {
 	return nil
 }
 
+// DiagnoseBreakPipe 诊断Broken Pipe的具体原因
+func (sp *StreamPusher) DiagnoseBreakPipe(duration time.Duration, output string) {
+	log.Println("")
+	log.Println("🔍 Broken Pipe 详细诊断:")
+	log.Printf("   连接持续时间: %.1f分钟", duration.Minutes())
+	
+	// 分析断开时间模式
+	if duration.Minutes() < 2 {
+		log.Println("   🚨 极短连接 - 可能是服务器拒绝参数")
+		log.Println("      • 检查视频/音频编码参数")
+		log.Println("      • 检查码率是否过高/过低")
+		log.Println("      • 检查推流码是否正确")
+	} else if duration.Minutes() < 5 {
+		log.Println("   ⚠️  短期连接 - 可能是流质量问题")
+		log.Println("      • 检查帧率转换是否平滑")
+		log.Println("      • 检查关键帧间隔设置")
+		log.Println("      • 检查网络稳定性")
+	} else if duration.Minutes() < 10 {
+		log.Println("   🤔 中期连接 - 可能是服务器策略")
+		log.Println("      • 服务器可能有连接时长限制")
+		log.Println("      • 推流码可能需要刷新")
+		log.Println("      • 负载均衡可能导致切换")
+	} else {
+		log.Println("   ✅ 长期连接 - 服务器正常，可能是网络问题")
+		log.Println("      • 检查网络连接稳定性")
+		log.Println("      • 检查防火墙/路由器设置")
+	}
+	
+	// 分析FFmpeg输出中的线索
+	if strings.Contains(output, "speed=") {
+		log.Println("   📊 性能分析:")
+		if strings.Contains(output, "speed=1") {
+			log.Println("      ✅ 实时处理性能正常")
+		} else if strings.Contains(output, "speed=0.") {
+			log.Println("      ⚠️  处理速度滞后，可能影响推流稳定性")
+		}
+	}
+	
+	log.Println("")
+}
+
 // AnalyzeError 分析FFmpeg错误输出
 func (sp *StreamPusher) AnalyzeError(exitCode int, output string) ErrorType {
 	// 输入流相关错误
@@ -214,7 +255,7 @@ func (sp *StreamPusher) Start() error {
 		"-bufsize", "1000k",         // 缓冲区大小
 		"-g", "250",                 // 关键帧间隔（匹配OBS keyint）
 		"-keyint_min", "25",         // 最小关键帧间隔
-		"-r", "30",                  // 帧率30fps（保持标准）
+		// 移除强制帧率转换，保持原始25fps
 		"-s", "640x480",             // 分辨率（保持原始分辨率）
 		
 		// 音频编码参数（参考OBS设置）
@@ -251,6 +292,7 @@ func (sp *StreamPusher) StartWithRetry() error {
 
 		log.Printf("🚀 启动推流 (尝试 %d/%d)", sp.currentRetry+1, sp.maxRetries+1)
 		
+		startTime := time.Now()
 		err := sp.Start()
 		if err != nil {
 			log.Printf("❌ 启动失败: %v", err)
@@ -260,6 +302,8 @@ func (sp *StreamPusher) StartWithRetry() error {
 
 		// 等待推流结束
 		waitErr := sp.Wait()
+		duration := time.Since(startTime)
+		
 		if waitErr == nil {
 			log.Println("✅ 推流正常结束")
 			return nil
@@ -267,6 +311,11 @@ func (sp *StreamPusher) StartWithRetry() error {
 
 		// 分析错误类型
 		errorType := sp.AnalyzeError(1, waitErr.Error())
+		
+		// 如果是Broken Pipe，进行详细诊断
+		if strings.Contains(waitErr.Error(), "Broken pipe") {
+			sp.DiagnoseBreakPipe(duration, waitErr.Error())
+		}
 		
 		// 如果是输入流错误，不重连
 		if errorType == ErrorTypeInputStream {
