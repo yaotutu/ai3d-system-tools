@@ -209,13 +209,13 @@ func (sp *StreamPusher) Start() error {
 		"-preset", "veryfast",       // 编码预设（匹配OBS）
 		"-tune", "zerolatency",      // 零延迟调优
 		"-x264-params", "nal-hrd=cbr", // CBR模式
-		"-b:v", "2500k",             // 视频码率（匹配OBS）
-		"-maxrate", "2500k",         // 最大码率
-		"-bufsize", "2500k",         // 缓冲区大小（匹配OBS）
+		"-b:v", "1000k",             // 视频码率（匹配640x480分辨率）
+		"-maxrate", "1000k",         // 最大码率
+		"-bufsize", "1000k",         // 缓冲区大小
 		"-g", "250",                 // 关键帧间隔（匹配OBS keyint）
 		"-keyint_min", "25",         // 最小关键帧间隔
-		"-r", "30",                  // 帧率30fps（匹配OBS）
-		"-s", "1920x1080",           // 分辨率（匹配OBS）
+		"-r", "30",                  // 帧率30fps（保持标准）
+		"-s", "640x480",             // 分辨率（保持原始分辨率）
 		
 		// 音频编码参数（参考OBS设置）
 		"-c:a", "aac",               // 音频编码为AAC
